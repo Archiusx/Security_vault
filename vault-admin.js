@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-// VAULT — Admin Dashboard (vault-admin.js)
+// VAULT — Admin Dashboard (vault-admin.js) — FIXED
 // ─────────────────────────────────────────────────────────────
 
 let allFiles = [];
@@ -23,7 +23,6 @@ function showSection(name) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('section-' + name).classList.add('active');
   event.currentTarget.classList.add('active');
-
   if (name === 'users') loadUsers();
   if (name === 'storage') loadStorage();
 }
@@ -35,10 +34,10 @@ async function loadFiles() {
     .select('*')
     .order('created_at', { ascending: false });
 
-  if (error) { console.error(error); return; }
-
+  if (error) { console.error('Load error:', error); return; }
   allFiles = data || [];
-  document.getElementById('fileCount').textContent = `${allFiles.length} file${allFiles.length !== 1 ? 's' : ''}`;
+  document.getElementById('fileCount').textContent =
+    `${allFiles.length} file${allFiles.length !== 1 ? 's' : ''}`;
   renderFiles();
 }
 
@@ -52,7 +51,6 @@ function renderFiles() {
     return matchFilter && matchSearch;
   });
 
-  // Clear existing cards
   Array.from(grid.querySelectorAll('.file-card')).forEach(c => c.remove());
 
   if (filtered.length === 0) {
@@ -60,14 +58,10 @@ function renderFiles() {
     return;
   }
   empty.style.display = 'none';
-
-  filtered.forEach(file => {
-    const card = buildFileCard(file, true);
-    grid.appendChild(card);
-  });
+  filtered.forEach(file => grid.appendChild(buildFileCard(file)));
 }
 
-function buildFileCard(file, isAdmin) {
+function buildFileCard(file) {
   const card = document.createElement('div');
   card.className = 'file-card';
   card.onclick = () => openPreview(file);
@@ -78,14 +72,15 @@ function buildFileCard(file, isAdmin) {
 
   const tag = document.createElement('div');
   tag.className = 'file-type-tag';
-  tag.textContent = file.type ? file.type.split('/')[1]?.toUpperCase() || 'FILE' : 'FILE';
+  tag.textContent = getExtension(file.name);
   thumb.appendChild(tag);
 
   if (category === 'image') {
     const img = document.createElement('img');
     img.loading = 'lazy';
     img.alt = file.name;
-    getSignedUrl(file.storage_path).then(url => { if (url) img.src = url; });
+    // Use public URL for thumbnails — faster than signed
+    getFileUrl(file.storage_path).then(url => { if (url) img.src = url; });
     thumb.appendChild(img);
   } else {
     const icon = document.createElement('div');
@@ -97,7 +92,7 @@ function buildFileCard(file, isAdmin) {
   const info = document.createElement('div');
   info.className = 'file-info';
   info.innerHTML = `
-    <div class="file-name" title="${file.name}">${file.name}</div>
+    <div class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
     <div class="file-size">${formatBytes(file.size || 0)}</div>
   `;
 
@@ -127,62 +122,147 @@ async function uploadFiles(files) {
   const label = document.getElementById('uploadLabel');
   progress.classList.remove('hidden');
 
+  let successCount = 0;
+
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
-    const pct = Math.round((i / files.length) * 100);
-    bar.style.width = pct + '%';
+    bar.style.width = Math.round(((i) / files.length) * 100) + '%';
     label.textContent = `Uploading ${i + 1}/${files.length}: ${file.name}`;
 
-    const path = `${session.email}/${Date.now()}_${file.name}`;
+    // Sanitize filename — remove special chars that break storage paths
+    const safeName = file.name.replace(/[^a-zA-Z0-9._\-() ]/g, '_');
+    const path = `files/${Date.now()}_${safeName}`;
 
     const { error: uploadError } = await _supabase.storage
       .from(BUCKET_NAME)
-      .upload(path, file, { upsert: false });
+      .upload(path, file, { upsert: false, contentType: file.type });
 
-    if (uploadError) { console.error('Upload error:', uploadError); continue; }
+    if (uploadError) {
+      console.error('Upload error for', file.name, ':', uploadError);
+      label.textContent = `❌ Failed: ${file.name} — ${uploadError.message}`;
+      await new Promise(r => setTimeout(r, 1500));
+      continue;
+    }
 
-    await _supabase.from('vault_files').insert({
+    const { error: dbError } = await _supabase.from('vault_files').insert({
       name: file.name,
       storage_path: path,
       size: file.size,
-      type: file.type,
+      type: file.type || guessMimeFromName(file.name),
       uploaded_by_email: session.email
     });
+
+    if (dbError) console.error('DB insert error:', dbError);
+    else successCount++;
   }
 
   bar.style.width = '100%';
-  label.textContent = 'Done!';
-  setTimeout(() => progress.classList.add('hidden'), 2000);
+  label.textContent = `✅ Done! ${successCount}/${files.length} uploaded`;
+  setTimeout(() => {
+    progress.classList.add('hidden');
+    bar.style.width = '0%';
+  }, 2500);
 
+  document.getElementById('fileInput').value = '';
   await loadFiles();
 }
 
-// ── Preview ───────────────────────────────────────────────────
+// ── Preview — FIXED ───────────────────────────────────────────
 async function openPreview(file) {
   previewFile = file;
   document.getElementById('previewName').textContent = file.name;
   document.getElementById('previewModal').classList.remove('hidden');
 
   const content = document.getElementById('previewContent');
-  content.innerHTML = '<div class="spinner" style="width:32px;height:32px;border:2px solid rgba(255,255,255,0.1);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite"></div>';
-
-  const url = await getSignedUrl(file.storage_path, 3600);
-  if (!url) { content.innerHTML = '<div class="preview-unsupported">Could not load file.</div>'; return; }
-
-  const category = getFileCategory(file.type);
-  if (category === 'image') {
-    content.innerHTML = `<img src="${url}" alt="${file.name}" draggable="false" />`;
-  } else if (category === 'video') {
-    content.innerHTML = `<video controls controlsList="nodownload" oncontextmenu="return false"><source src="${url}" type="${file.type}" /></video>`;
-  } else if (file.type === 'application/pdf') {
-    content.innerHTML = `<iframe src="${url}#toolbar=0&navpanes=0" title="${file.name}"></iframe>`;
-  } else {
-    content.innerHTML = `<div class="preview-unsupported">
-      <div style="font-size:48px;margin-bottom:12px">${getFileIcon(category)}</div>
-      <p style="margin-bottom:8px">${file.name}</p>
-      <p style="font-size:10px;color:var(--text-muted)">${formatBytes(file.size || 0)} · Click download to save</p>
+  content.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--text-muted)">
+      <div class="spinner" style="width:32px;height:32px;border:2px solid rgba(255,255,255,0.1);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite"></div>
+      <span style="font-size:11px;letter-spacing:1px">Loading preview...</span>
     </div>`;
+
+  // Get signed URL with long expiry for admin
+  const url = await getFileUrl(file.storage_path, 7200);
+
+  if (!url) {
+    content.innerHTML = `
+      <div class="preview-unsupported">
+        <div style="font-size:36px;margin-bottom:12px">⚠️</div>
+        <p style="margin-bottom:6px">Could not load preview</p>
+        <p style="font-size:10px;opacity:0.5">Check Supabase storage policies</p>
+      </div>`;
+    return;
   }
+
+  const category = getFileCategory(file.type, file.name);
+
+  if (category === 'image') {
+    const img = new Image();
+    img.onload = () => {
+      content.innerHTML = '';
+      img.style.cssText = 'max-width:100%;max-height:65vh;border-radius:6px;display:block;';
+      img.draggable = false;
+      content.appendChild(img);
+    };
+    img.onerror = () => {
+      content.innerHTML = `<div class="preview-unsupported">❌ Image failed to load.<br/><small style="opacity:.5">Try downloading instead.</small></div>`;
+    };
+    img.src = url;
+
+  } else if (category === 'video') {
+    content.innerHTML = `
+      <video controls controlsList="nodownload" style="max-width:100%;max-height:65vh;border-radius:6px;" oncontextmenu="return false">
+        <source src="${url}" type="${file.type}">
+        Your browser does not support this video format.
+      </video>`;
+
+  } else if (category === 'pdf') {
+    content.innerHTML = `
+      <iframe
+        src="${url}#toolbar=1&navpanes=0&view=FitH"
+        style="width:100%;height:65vh;border:none;border-radius:6px;background:#fff;"
+        title="${escapeHtml(file.name)}">
+      </iframe>`;
+
+  } else if (category === 'text') {
+    // Fetch and display text content inline
+    try {
+      const resp = await fetch(url);
+      const text = await resp.text();
+      content.innerHTML = `
+        <pre style="
+          width:100%;max-height:65vh;overflow:auto;
+          background:var(--bg3);border-radius:6px;
+          padding:20px;font-size:12px;line-height:1.7;
+          color:var(--text);white-space:pre-wrap;word-break:break-word;
+          border:1px solid var(--border);text-align:left;
+        ">${escapeHtml(text)}</pre>`;
+    } catch {
+      content.innerHTML = unsupportedPreview(file, url);
+    }
+
+  } else if (category === 'audio') {
+    content.innerHTML = `
+      <div style="padding:40px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:20px">🎵</div>
+        <p style="margin-bottom:16px;color:var(--text-muted);font-size:12px">${escapeHtml(file.name)}</p>
+        <audio controls style="width:100%;max-width:400px;">
+          <source src="${url}" type="${file.type}">
+        </audio>
+      </div>`;
+
+  } else {
+    content.innerHTML = unsupportedPreview(file, url);
+  }
+}
+
+function unsupportedPreview(file, url) {
+  return `
+    <div class="preview-unsupported">
+      <div style="font-size:52px;margin-bottom:14px">${getFileIcon(getFileCategory(file.type, file.name))}</div>
+      <p style="margin-bottom:6px;color:var(--text)">${escapeHtml(file.name)}</p>
+      <p style="font-size:11px;color:var(--text-muted);margin-bottom:20px">${formatBytes(file.size || 0)}</p>
+      <p style="font-size:10px;color:var(--text-muted)">No preview available — click Download to open this file.</p>
+    </div>`;
 }
 
 function closePreview(event) {
@@ -190,17 +270,20 @@ function closePreview(event) {
 }
 function closePreviewModal() {
   document.getElementById('previewModal').classList.add('hidden');
+  // Stop any playing video/audio
+  document.querySelectorAll('#previewContent video, #previewContent audio').forEach(m => m.pause());
   document.getElementById('previewContent').innerHTML = '';
   previewFile = null;
 }
 
 async function downloadFile() {
   if (!previewFile) return;
-  const url = await getSignedUrl(previewFile.storage_path, 300);
-  if (!url) return;
+  const url = await getFileUrl(previewFile.storage_path, 300);
+  if (!url) { alert('Could not generate download link.'); return; }
   const a = document.createElement('a');
   a.href = url;
   a.download = previewFile.name;
+  a.target = '_blank';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -208,10 +291,15 @@ async function downloadFile() {
 
 async function deleteFile() {
   if (!previewFile) return;
-  if (!confirm(`Delete "${previewFile.name}"? This cannot be undone.`)) return;
+  if (!confirm(`Delete "${previewFile.name}"?\nThis cannot be undone.`)) return;
 
-  await _supabase.storage.from(BUCKET_NAME).remove([previewFile.storage_path]);
-  await _supabase.from('vault_files').delete().eq('id', previewFile.id);
+  const { error: storageErr } = await _supabase.storage
+    .from(BUCKET_NAME).remove([previewFile.storage_path]);
+  if (storageErr) console.error('Storage delete error:', storageErr);
+
+  const { error: dbErr } = await _supabase.from('vault_files')
+    .delete().eq('id', previewFile.id);
+  if (dbErr) console.error('DB delete error:', dbErr);
 
   closePreviewModal();
   await loadFiles();
@@ -223,9 +311,7 @@ async function loadUsers() {
   list.innerHTML = '<div class="loading-text">Loading...</div>';
 
   const { data, error } = await _supabase
-    .from('vault_users')
-    .select('email, role, created_at')
-    .order('created_at');
+    .from('vault_users').select('email, role, created_at').order('created_at');
 
   if (error) { list.innerHTML = '<div class="loading-text">Error loading users.</div>'; return; }
 
@@ -235,12 +321,13 @@ async function loadUsers() {
     row.className = 'user-row';
     const isYou = user.email === session.email;
     row.innerHTML = `
-      <div class="user-row-email">${user.email}${isYou ? ' <span style="color:var(--text-muted);font-size:10px">(you)</span>' : ''}</div>
+      <div class="user-row-email">${escapeHtml(user.email)}
+        ${isYou ? '<span style="color:var(--text-muted);font-size:10px;margin-left:6px">(you)</span>' : ''}
+      </div>
       <div class="user-badge ${user.role === 'admin' ? 'admin-badge' : 'guest-badge'}">${user.role.toUpperCase()}</div>
       <div class="user-row-actions">
-        ${!isYou ? `<button class="user-action-btn" onclick="removeUser('${user.email}')">Remove</button>` : ''}
-      </div>
-    `;
+        ${!isYou ? `<button class="user-action-btn" onclick="removeUser('${escapeHtml(user.email)}')">Remove</button>` : ''}
+      </div>`;
     list.appendChild(row);
   });
 }
@@ -249,6 +336,7 @@ function showInviteModal() {
   document.getElementById('inviteModal').classList.remove('hidden');
   document.getElementById('inviteEmail').value = '';
   document.getElementById('inviteError').classList.add('hidden');
+  setTimeout(() => document.getElementById('inviteEmail').focus(), 100);
 }
 function closeInviteModal() { document.getElementById('inviteModal').classList.add('hidden'); }
 function closeInvite(e) { if (e.target === document.getElementById('inviteModal')) closeInviteModal(); }
@@ -265,16 +353,12 @@ async function inviteUser() {
     errEl.textContent = 'That is your own email.'; errEl.classList.remove('hidden'); return;
   }
 
-  const { error } = await _supabase
-    .from('vault_users')
-    .insert({ email, role: 'guest' });
-
+  const { error } = await _supabase.from('vault_users').insert({ email, role: 'guest' });
   if (error) {
     errEl.textContent = error.code === '23505' ? 'User already exists.' : 'Error adding user.';
     errEl.classList.remove('hidden');
     return;
   }
-
   closeInviteModal();
   loadUsers();
 }
@@ -287,12 +371,12 @@ async function removeUser(email) {
 
 // ── Storage Stats ─────────────────────────────────────────────
 async function loadStorage() {
-  const { data } = await _supabase.from('vault_files').select('size, type');
+  const { data } = await _supabase.from('vault_files').select('size, type, name');
   if (!data) return;
 
   let totals = { image: 0, pdf: 0, video: 0, other: 0, total: 0 };
   data.forEach(f => {
-    const cat = getFileCategory(f.type);
+    const cat = getFileCategory(f.type, f.name);
     const size = f.size || 0;
     totals.total += size;
     if (cat === 'image') totals.image += size;
@@ -308,11 +392,8 @@ async function loadStorage() {
   document.getElementById('statOther').textContent = formatBytes(totals.other);
   document.getElementById('statTotal').textContent = data.length;
 
-  // Animate ring
   const pct = Math.min(totals.total / STORAGE_LIMIT, 1);
-  const circumference = 314;
-  const offset = circumference - (circumference * pct);
-  document.getElementById('storageArc').style.strokeDashoffset = offset;
+  document.getElementById('storageArc').style.strokeDashoffset = 314 - (314 * pct);
 }
 
 // ── Filtering ─────────────────────────────────────────────────
@@ -322,29 +403,78 @@ function filterFiles(cat, btn) {
   btn.classList.add('active');
   renderFiles();
 }
-
 function searchFiles(query) {
   currentSearch = query;
   renderFiles();
 }
 
-// ── Helpers ───────────────────────────────────────────────────
-async function getSignedUrl(path, expiry = 60) {
-  const { data } = await _supabase.storage
-    .from(BUCKET_NAME)
-    .createSignedUrl(path, expiry);
-  return data?.signedUrl || null;
+// ── URL Helper — FIXED ────────────────────────────────────────
+async function getFileUrl(path, expiry = 3600) {
+  if (!path) return null;
+  try {
+    const { data, error } = await _supabase.storage
+      .from(BUCKET_NAME)
+      .createSignedUrl(path, expiry);
+    if (error) {
+      console.error('Signed URL error:', error);
+      return null;
+    }
+    return data?.signedUrl || null;
+  } catch (err) {
+    console.error('getFileUrl exception:', err);
+    return null;
+  }
 }
 
-function getFileCategory(mimeType) {
-  if (!mimeType) return 'other';
+// Kept for backward compat
+async function getSignedUrl(path, expiry = 3600) {
+  return getFileUrl(path, expiry);
+}
+
+// ── File type helpers ─────────────────────────────────────────
+function getFileCategory(mimeType, filename = '') {
+  const ext = filename.split('.').pop().toLowerCase();
+  if (!mimeType || mimeType === 'application/octet-stream') {
+    // Fallback to extension
+    if (['jpg','jpeg','png','gif','webp','svg','bmp','ico'].includes(ext)) return 'image';
+    if (['mp4','webm','mov','avi','mkv','m4v'].includes(ext)) return 'video';
+    if (['pdf'].includes(ext)) return 'pdf';
+    if (['mp3','wav','ogg','m4a','flac','aac'].includes(ext)) return 'audio';
+    if (['txt','md','js','ts','css','html','json','csv','xml','py','java','c','cpp'].includes(ext)) return 'text';
+    return 'other';
+  }
   if (mimeType.startsWith('image/')) return 'image';
   if (mimeType.startsWith('video/')) return 'video';
-  if (mimeType === 'application/pdf' || mimeType.includes('document') || mimeType.includes('text')) return 'pdf';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType === 'application/pdf') return 'pdf';
+  if (mimeType.startsWith('text/') || ['application/json','application/xml'].includes(mimeType)) return 'text';
+  if (mimeType.includes('document') || mimeType.includes('word') || mimeType.includes('sheet') || mimeType.includes('presentation')) return 'pdf';
   return 'other';
 }
 
 function getFileIcon(category) {
-  const icons = { image: '🖼️', video: '🎬', pdf: '📄', other: '📦' };
-  return icons[category] || '📦';
+  return { image:'🖼️', video:'🎬', pdf:'📄', audio:'🎵', text:'📝', other:'📦' }[category] || '📦';
+}
+
+function getExtension(filename) {
+  const ext = filename.split('.').pop();
+  return ext ? ext.toUpperCase() : 'FILE';
+}
+
+function guessMimeFromName(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  const map = {
+    jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif',
+    webp:'image/webp', svg:'image/svg+xml', mp4:'video/mp4', webm:'video/webm',
+    mov:'video/quicktime', mp3:'audio/mpeg', wav:'audio/wav', pdf:'application/pdf',
+    txt:'text/plain', md:'text/markdown', json:'application/json',
+    csv:'text/csv', html:'text/html', js:'text/javascript'
+  };
+  return map[ext] || 'application/octet-stream';
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
