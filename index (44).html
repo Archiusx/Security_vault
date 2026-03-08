@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>VAULT</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+</head>
+<body class="auth-page">
+
+  <div class="noise"></div>
+
+  <div class="auth-container">
+    <div class="vault-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="10" width="40" height="32" rx="4" stroke="currentColor" stroke-width="2.5"/>
+          <circle cx="24" cy="26" r="6" stroke="currentColor" stroke-width="2.5"/>
+          <circle cx="24" cy="26" r="2" fill="currentColor"/>
+          <path d="M24 20v-4M30.5 23l3.5-2M30.5 29l3.5 2M24 32v4M17.5 29l-3.5 2M17.5 23l-3.5-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M16 10V8a8 8 0 0116 0v2" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="38" cy="26" r="2" fill="currentColor" opacity="0.5"/>
+        </svg>
+      </div>
+      <h1>VAULT</h1>
+      <p class="tagline">Secure Personal Storage</p>
+    </div>
+
+    <!-- STEP 1: Email -->
+    <div class="auth-step active" id="step-email">
+      <label class="field-label">YOUR EMAIL</label>
+      <input type="email" id="emailInput" class="text-input" placeholder="you@example.com" autocomplete="off" />
+      <div id="emailError" class="error-msg hidden"></div>
+      <button class="btn-primary" onclick="submitEmail()">
+        <span>CONTINUE</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <!-- STEP 2: PIN Entry -->
+    <div class="auth-step" id="step-pin">
+      <div class="back-btn" onclick="goBack('step-email', 'step-pin')">← back</div>
+      <label class="field-label" id="pinLabel">ENTER YOUR PIN</label>
+      <p class="pin-sub" id="pinSub"></p>
+      <div class="pin-display" id="pinDisplay">
+        <div class="pin-dot" data-idx="0"></div>
+        <div class="pin-dot" data-idx="1"></div>
+        <div class="pin-dot" data-idx="2"></div>
+        <div class="pin-dot" data-idx="3"></div>
+      </div>
+      <div id="pinError" class="error-msg hidden"></div>
+      <div class="numpad">
+        <button class="num-key" onclick="pinKey('1')">1</button>
+        <button class="num-key" onclick="pinKey('2')">2</button>
+        <button class="num-key" onclick="pinKey('3')">3</button>
+        <button class="num-key" onclick="pinKey('4')">4</button>
+        <button class="num-key" onclick="pinKey('5')">5</button>
+        <button class="num-key" onclick="pinKey('6')">6</button>
+        <button class="num-key" onclick="pinKey('7')">7</button>
+        <button class="num-key" onclick="pinKey('8')">8</button>
+        <button class="num-key" onclick="pinKey('9')">9</button>
+        <button class="num-key key-clear" onclick="pinClear()">CLR</button>
+        <button class="num-key" onclick="pinKey('0')">0</button>
+        <button class="num-key key-del" onclick="pinDel()">⌫</button>
+      </div>
+      <div class="forgot-pin">
+        <a href="#" onclick="requestPinReset()">Forgot PIN? Reset via email</a>
+      </div>
+    </div>
+
+    <!-- STEP 3: Setup PIN (first time) -->
+    <div class="auth-step" id="step-setup">
+      <div class="back-btn" onclick="goBack('step-email', 'step-setup')">← back</div>
+      <label class="field-label">SET YOUR 4-DIGIT PIN</label>
+      <p class="pin-sub">You are setting up this vault for the first time.<br/>This PIN will be required every login.</p>
+      <div class="pin-display" id="pinDisplaySetup">
+        <div class="pin-dot" data-idx="0"></div>
+        <div class="pin-dot" data-idx="1"></div>
+        <div class="pin-dot" data-idx="2"></div>
+        <div class="pin-dot" data-idx="3"></div>
+      </div>
+      <div id="setupError" class="error-msg hidden"></div>
+      <div class="numpad">
+        <button class="num-key" onclick="setupKey('1')">1</button>
+        <button class="num-key" onclick="setupKey('2')">2</button>
+        <button class="num-key" onclick="setupKey('3')">3</button>
+        <button class="num-key" onclick="setupKey('4')">4</button>
+        <button class="num-key" onclick="setupKey('5')">5</button>
+        <button class="num-key" onclick="setupKey('6')">6</button>
+        <button class="num-key" onclick="setupKey('7')">7</button>
+        <button class="num-key" onclick="setupKey('8')">8</button>
+        <button class="num-key" onclick="setupKey('9')">9</button>
+        <button class="num-key key-clear" onclick="setupClear()">CLR</button>
+        <button class="num-key" onclick="setupKey('0')">0</button>
+        <button class="num-key key-del" onclick="setupDel()">⌫</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: Confirm PIN -->
+    <div class="auth-step" id="step-confirm">
+      <label class="field-label">CONFIRM YOUR PIN</label>
+      <p class="pin-sub">Enter the same PIN again to confirm.</p>
+      <div class="pin-display" id="pinDisplayConfirm">
+        <div class="pin-dot" data-idx="0"></div>
+        <div class="pin-dot" data-idx="1"></div>
+        <div class="pin-dot" data-idx="2"></div>
+        <div class="pin-dot" data-idx="3"></div>
+      </div>
+      <div id="confirmError" class="error-msg hidden"></div>
+      <div class="numpad">
+        <button class="num-key" onclick="confirmKey('1')">1</button>
+        <button class="num-key" onclick="confirmKey('2')">2</button>
+        <button class="num-key" onclick="confirmKey('3')">3</button>
+        <button class="num-key" onclick="confirmKey('4')">4</button>
+        <button class="num-key" onclick="confirmKey('5')">5</button>
+        <button class="num-key" onclick="confirmKey('6')">6</button>
+        <button class="num-key" onclick="confirmKey('7')">7</button>
+        <button class="num-key" onclick="confirmKey('8')">8</button>
+        <button class="num-key" onclick="confirmKey('9')">9</button>
+        <button class="num-key key-clear" onclick="confirmClear()">CLR</button>
+        <button class="num-key" onclick="confirmKey('0')">0</button>
+        <button class="num-key key-del" onclick="confirmDel()">⌫</button>
+      </div>
+    </div>
+
+    <!-- Device blocked -->
+    <div class="auth-step" id="step-blocked">
+      <div class="blocked-icon">🔒</div>
+      <h2 class="blocked-title">ACCESS DENIED</h2>
+      <p class="blocked-msg">This account is already linked to another device. Each account is restricted to one device.<br/><br/>If you need to switch devices, reset your PIN via email and re-login on this device.</p>
+      <button class="btn-primary" onclick="requestPinReset()">Request Device Reset via Email</button>
+    </div>
+
+    <div class="loading-overlay hidden" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/login.js"></script>
+</body>
+</html>

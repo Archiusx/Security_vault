@@ -1,0 +1,334 @@
+/* ──────────────────────────────────────────────────────────────
+   VAULT — Main Styles
+   Aesthetic: Industrial Dark / Vault Security Terminal
+────────────────────────────────────────────────────────────── */
+:root {
+  --bg: #0a0a0c;
+  --bg2: #111115;
+  --bg3: #18181e;
+  --border: rgba(255,255,255,0.07);
+  --border-hover: rgba(255,255,255,0.15);
+  --text: #e8e8f0;
+  --text-muted: rgba(232,232,240,0.45);
+  --accent: #c8f04a;
+  --accent-dim: rgba(200,240,74,0.12);
+  --accent-hover: #d9ff5a;
+  --danger: #ff4a6b;
+  --danger-dim: rgba(255,74,107,0.12);
+  --font-mono: 'Space Mono', monospace;
+  --font-display: 'Syne', sans-serif;
+  --radius: 10px;
+  --sidebar-w: 220px;
+  --transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Noise overlay */
+.noise {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.6;
+}
+
+/* ── AUTH PAGE ─────────────────────────────────────────────── */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 80%, rgba(200,240,74,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 80% 10%, rgba(200,240,74,0.03) 0%, transparent 60%),
+    var(--bg);
+}
+
+.auth-container {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 40px 36px;
+  overflow: hidden;
+}
+
+.auth-container::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+/* Logo */
+.vault-logo {
+  text-align: center;
+  margin-bottom: 36px;
+}
+.vault-logo.small { margin-bottom: 28px; }
+.vault-logo.small h1 { font-size: 22px; }
+
+.logo-icon {
+  width: 56px; height: 56px;
+  margin: 0 auto 14px;
+  color: var(--accent);
+  animation: logo-float 4s ease-in-out infinite;
+}
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.logo-icon svg { width: 100%; height: 100%; }
+
+.vault-logo h1 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  color: var(--text);
+}
+.tagline {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* Auth steps */
+.auth-step { display: none; }
+.auth-step.active { display: block; animation: step-in 0.3s ease; }
+@keyframes step-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.back-btn {
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-bottom: 20px;
+  display: inline-block;
+  transition: var(--transition);
+  letter-spacing: 1px;
+}
+.back-btn:hover { color: var(--text); }
+
+.field-label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.text-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  outline: none;
+  transition: var(--transition);
+  margin-bottom: 14px;
+}
+.text-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.text-input::placeholder { color: var(--text-muted); }
+
+/* PIN display */
+.pin-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  line-height: 1.7;
+}
+
+.pin-display {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+.pin-dot {
+  width: 52px; height: 52px;
+  border: 2px solid var(--border-hover);
+  border-radius: 10px;
+  background: var(--bg3);
+  position: relative;
+  transition: var(--transition);
+}
+.pin-dot.filled {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.pin-dot.filled::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.pin-dot.shake {
+  animation: pin-shake 0.4s ease;
+  border-color: var(--danger) !important;
+}
+@keyframes pin-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+/* Numpad */
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+.num-key {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  padding: 16px;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.num-key:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.num-key:active { transform: scale(0.95); }
+.key-clear, .key-del {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+.key-del { font-size: 16px; }
+
+/* Buttons */
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: var(--accent);
+  color: #0a0a0c;
+  border: none;
+  border-radius: var(--radius);
+  padding: 13px 20px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-top: 4px;
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(200,240,74,0.25);
+}
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Error msg */
+.error-msg {
+  background: var(--danger-dim);
+  border: 1px solid rgba(255,74,107,0.25);
+  border-radius: 6px;
+  color: var(--danger);
+  font-size: 11px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  letter-spacing: 0.5px;
+}
+.hidden { display: none !important; }
+
+/* Forgot PIN */
+.forgot-pin {
+  text-align: center;
+  margin-top: 16px;
+}
+.forgot-pin a {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-decoration: none;
+  letter-spacing: 1px;
+  transition: var(--transition);
+}
+.forgot-pin a:hover { color: var(--accent); }
+
+/* Blocked screen */
+.blocked-icon { font-size: 48px; text-align: center; margin-bottom: 16px; }
+.blocked-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.blocked-msg {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.8;
+  margin-bottom: 24px;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10,10,12,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+.spinner {
+  width: 32px; height: 32px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Reset PIN — VAULT</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+</head>
+<body class="auth-page">
+  <div class="noise"></div>
+  <div class="auth-container">
+    <div class="vault-logo small">
+      <h1>VAULT</h1>
+    </div>
+
+    <!-- New PIN step -->
+    <div class="auth-step active" id="step-newpin">
+      <label class="field-label">SET NEW PIN</label>
+      <p class="pin-sub">Choose a new 4-digit PIN for your vault.</p>
+      <div class="pin-display" id="pinDisplayNew">
+        <div class="pin-dot" data-idx="0"></div>
+        <div class="pin-dot" data-idx="1"></div>
+        <div class="pin-dot" data-idx="2"></div>
+        <div class="pin-dot" data-idx="3"></div>
+      </div>
+      <div id="newPinError" class="error-msg hidden"></div>
+      <div class="numpad">
+        <button class="num-key" onclick="newPinKey('1')">1</button>
+        <button class="num-key" onclick="newPinKey('2')">2</button>
+        <button class="num-key" onclick="newPinKey('3')">3</button>
+        <button class="num-key" onclick="newPinKey('4')">4</button>
+        <button class="num-key" onclick="newPinKey('5')">5</button>
+        <button class="num-key" onclick="newPinKey('6')">6</button>
+        <button class="num-key" onclick="newPinKey('7')">7</button>
+        <button class="num-key" onclick="newPinKey('8')">8</button>
+        <button class="num-key" onclick="newPinKey('9')">9</button>
+        <button class="num-key key-clear" onclick="newPinClear()">CLR</button>
+        <button class="num-key" onclick="newPinKey('0')">0</button>
+        <button class="num-key key-del" onclick="newPinDel()">⌫</button>
+      </div>
+    </div>
+
+    <!-- Confirm new PIN -->
+    <div class="auth-step" id="step-confirmnew">
+      <label class="field-label">CONFIRM NEW PIN</label>
+      <p class="pin-sub">Enter the same PIN again.</p>
+      <div class="pin-display" id="pinDisplayConfirmNew">
+        <div class="pin-dot" data-idx="0"></div>
+        <div class="pin-dot" data-idx="1"></div>
+        <div class="pin-dot" data-idx="2"></div>
+        <div class="pin-dot" data-idx="3"></div>
+      </div>
+      <div id="confirmNewError" class="error-msg hidden"></div>
+      <div class="numpad">
+        <button class="num-key" onclick="confirmNewKey('1')">1</button>
+        <button class="num-key" onclick="confirmNewKey('2')">2</button>
+        <button class="num-key" onclick="confirmNewKey('3')">3</button>
+        <button class="num-key" onclick="confirmNewKey('4')">4</button>
+        <button class="num-key" onclick="confirmNewKey('5')">5</button>
+        <button class="num-key" onclick="confirmNewKey('6')">6</button>
+        <button class="num-key" onclick="confirmNewKey('7')">7</button>
+        <button class="num-key" onclick="confirmNewKey('8')">8</button>
+        <button class="num-key" onclick="confirmNewKey('9')">9</button>
+        <button class="num-key key-clear" onclick="confirmNewClear()">CLR</button>
+        <button class="num-key" onclick="confirmNewKey('0')">0</button>
+        <button class="num-key key-del" onclick="confirmNewDel()">⌫</button>
+      </div>
+    </div>
+
+    <!-- Success -->
+    <div class="auth-step" id="step-success">
+      <div class="blocked-icon">✅</div>
+      <h2 class="blocked-title">PIN UPDATED</h2>
+      <p class="blocked-msg">Your PIN has been successfully updated. Your device has also been re-registered.</p>
+      <a href="index.html" class="btn-primary" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;">GO TO VAULT</a>
+    </div>
+
+    <!-- Invalid/expired -->
+    <div class="auth-step" id="step-invalid">
+      <div class="blocked-icon">⚠️</div>
+      <h2 class="blocked-title">LINK EXPIRED</h2>
+      <p class="blocked-msg">This reset link has expired or already been used. Please request a new one from the login page.</p>
+      <a href="index.html" class="btn-primary" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;">BACK TO LOGIN</a>
+    </div>
+
+    <div class="loading-overlay hidden" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/reset.js"></script>
+</body>
+</html>

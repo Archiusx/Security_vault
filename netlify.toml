@@ -1,0 +1,33 @@
+# Netlify Configuration for VAULT
+
+[build]
+  publish = "."          # Root folder (plain HTML - no build step needed)
+  command = ""           # No build command needed
+
+# Redirect all routes back to index.html (SPA-style)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+
+# Security headers — critical for a secure vault
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Prevent embedding in iframes (clickjacking)
+    X-Frame-Options = "DENY"
+    # Block content sniffing
+    X-Content-Type-Options = "nosniff"
+    # Force HTTPS
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    # Prevent referrer leakage
+    Referrer-Policy = "no-referrer"
+    # Disable browser caching of sensitive pages
+    Cache-Control = "no-store, no-cache, must-revalidate, private"
+    # Content Security Policy
+    Content-Security-Policy = "default-src 'self' https://*.supabase.co https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' blob: data: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; frame-src 'self' blob: https://*.supabase.co; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;"
+    # Block search indexing
+    X-Robots-Tag = "noindex, nofollow, nosnippet, noarchive"
+    # Disable browser features
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), screen-wake-lock=()"

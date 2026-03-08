@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Guest View — VAULT</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/vault.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* Extra guest lockdown */
+    * { -webkit-user-select: none !important; user-select: none !important; }
+    img, video { pointer-events: none !important; -webkit-user-drag: none !important; }
+    .watermark { position:fixed; inset:0; pointer-events:none; z-index:9999; overflow:hidden; }
+    .watermark::before {
+      content: attr(data-email);
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%) rotate(-30deg);
+      font-size: 18px;
+      font-family: 'Space Mono', monospace;
+      color: rgba(255,255,255,0.04);
+      white-space: nowrap;
+      letter-spacing: 4px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body class="vault-page guest-mode">
+  <div class="noise"></div>
+  <div class="watermark" id="watermark"></div>
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
+        <rect x="4" y="10" width="40" height="32" rx="4" stroke="currentColor" stroke-width="2.5"/>
+        <circle cx="24" cy="26" r="6" stroke="currentColor" stroke-width="2.5"/>
+        <circle cx="24" cy="26" r="2" fill="currentColor"/>
+        <path d="M24 20v-4M30.5 23l3.5-2M30.5 29l3.5 2M24 32v4M17.5 29l-3.5 2M17.5 23l-3.5-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M16 10V8a8 8 0 0116 0v2" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <span>VAULT</span>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-badge guest-badge">GUEST</div>
+      <div class="user-email" id="sidebarEmail">—</div>
+    </div>
+    <div class="guest-notice">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      View only access. No downloads or sharing permitted.
+    </div>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="logout()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Logout
+      </button>
+    </div>
+  </aside>
+
+  <main class="vault-main">
+    <section class="vault-section active" id="section-files">
+      <div class="section-header">
+        <div>
+          <h2>SHARED FILES</h2>
+          <p class="section-sub" id="fileCount">Loading...</p>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterFiles('all', this)">ALL</button>
+        <button class="filter-btn" onclick="filterFiles('image', this)">IMAGES</button>
+        <button class="filter-btn" onclick="filterFiles('pdf', this)">DOCS</button>
+        <button class="filter-btn" onclick="filterFiles('video', this)">VIDEOS</button>
+        <button class="filter-btn" onclick="filterFiles('other', this)">OTHER</button>
+        <div class="search-wrap">
+          <input type="text" id="searchInput" class="search-input" placeholder="Search files..." oninput="searchFiles(this.value)" />
+        </div>
+      </div>
+      <div class="files-grid" id="filesGrid">
+        <div class="files-empty" id="filesEmpty" style="display:none">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" stroke="currentColor" stroke-width="1.3" opacity=".4"/></svg>
+          <p>No files shared yet.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Preview modal — view only, no controls -->
+  <div class="modal-overlay hidden" id="previewModal" onclick="closePreview(event)">
+    <div class="modal-box preview-box guest-preview">
+      <div class="modal-header">
+        <span id="previewName">—</span>
+        <button class="modal-close" onclick="closePreviewModal()">✕</button>
+      </div>
+      <div class="preview-content no-interact" id="previewContent"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/security.js"></script>
+  <script src="js/vault-guest.js"></script>
+</body>
+</html>

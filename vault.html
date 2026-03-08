@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Admin — VAULT</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/vault.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+</head>
+<body class="vault-page">
+  <div class="noise"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
+        <rect x="4" y="10" width="40" height="32" rx="4" stroke="currentColor" stroke-width="2.5"/>
+        <circle cx="24" cy="26" r="6" stroke="currentColor" stroke-width="2.5"/>
+        <circle cx="24" cy="26" r="2" fill="currentColor"/>
+        <path d="M24 20v-4M30.5 23l3.5-2M30.5 29l3.5 2M24 32v4M17.5 29l-3.5 2M17.5 23l-3.5-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M16 10V8a8 8 0 0116 0v2" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <span>VAULT</span>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-badge admin-badge">ADMIN</div>
+      <div class="user-email" id="sidebarEmail">—</div>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item active" onclick="showSection('files')" href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" stroke="currentColor" stroke-width="1.8"/></svg>
+        Files
+      </a>
+      <a class="nav-item" onclick="showSection('users')" href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M2 21v-1a7 7 0 0114 0v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M19 8v6M22 11h-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Users
+      </a>
+      <a class="nav-item" onclick="showSection('storage')" href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="5" rx="9" ry="3" stroke="currentColor" stroke-width="1.8"/><path d="M3 5v14c0 1.657 4.03 3 9 3s9-1.343 9-3V5" stroke="currentColor" stroke-width="1.8"/><path d="M3 12c0 1.657 4.03 3 9 3s9-1.343 9-3" stroke="currentColor" stroke-width="1.8"/></svg>
+        Storage
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="logout()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="vault-main">
+    <!-- Files Section -->
+    <section class="vault-section active" id="section-files">
+      <div class="section-header">
+        <div>
+          <h2>YOUR FILES</h2>
+          <p class="section-sub" id="fileCount">Loading...</p>
+        </div>
+        <button class="btn-primary upload-btn" onclick="document.getElementById('fileInput').click()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          UPLOAD
+        </button>
+        <input type="file" id="fileInput" multiple hidden onchange="uploadFiles(this.files)" />
+      </div>
+
+      <!-- Upload drop zone -->
+      <div class="drop-zone" id="dropZone">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12l7-7 7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span>Drop files here or click UPLOAD</span>
+      </div>
+
+      <!-- Upload progress -->
+      <div class="upload-progress hidden" id="uploadProgress">
+        <div class="upload-bar-wrap"><div class="upload-bar" id="uploadBar"></div></div>
+        <span id="uploadLabel">Uploading...</span>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterFiles('all', this)">ALL</button>
+        <button class="filter-btn" onclick="filterFiles('image', this)">IMAGES</button>
+        <button class="filter-btn" onclick="filterFiles('pdf', this)">DOCS</button>
+        <button class="filter-btn" onclick="filterFiles('video', this)">VIDEOS</button>
+        <button class="filter-btn" onclick="filterFiles('other', this)">OTHER</button>
+        <div class="search-wrap">
+          <input type="text" id="searchInput" class="search-input" placeholder="Search files..." oninput="searchFiles(this.value)" />
+        </div>
+      </div>
+
+      <!-- Files grid -->
+      <div class="files-grid" id="filesGrid">
+        <div class="files-empty" id="filesEmpty" style="display:none">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 012-2h5l2 2h7a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" stroke="currentColor" stroke-width="1.3" opacity=".4"/></svg>
+          <p>No files yet. Upload something!</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Users Section -->
+    <section class="vault-section" id="section-users">
+      <div class="section-header">
+        <div>
+          <h2>MANAGE USERS</h2>
+          <p class="section-sub">Control who can view your vault</p>
+        </div>
+        <button class="btn-primary" onclick="showInviteModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M16 21v-2a4 4 0 00-8 0v2M12 11a4 4 0 100-8 4 4 0 000 8zM19 8v6M22 11h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          ADD USER
+        </button>
+      </div>
+      <div class="users-list" id="usersList">
+        <div class="loading-text">Loading users...</div>
+      </div>
+    </section>
+
+    <!-- Storage Section -->
+    <section class="vault-section" id="section-storage">
+      <div class="section-header">
+        <div>
+          <h2>STORAGE</h2>
+          <p class="section-sub">1 GB total capacity</p>
+        </div>
+      </div>
+      <div class="storage-card">
+        <div class="storage-ring-wrap">
+          <svg class="storage-ring" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12"/>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--accent)" stroke-width="12"
+              stroke-dasharray="314" stroke-dashoffset="314" stroke-linecap="round"
+              id="storageArc" style="transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1s ease"/>
+          </svg>
+          <div class="storage-ring-text">
+            <span id="storageUsed">0 MB</span>
+            <small>of 1 GB</small>
+          </div>
+        </div>
+        <div class="storage-stats">
+          <div class="stat-row"><span>Images</span><strong id="statImages">0 MB</strong></div>
+          <div class="stat-row"><span>Documents</span><strong id="statDocs">0 MB</strong></div>
+          <div class="stat-row"><span>Videos</span><strong id="statVideos">0 MB</strong></div>
+          <div class="stat-row"><span>Other</span><strong id="statOther">0 MB</strong></div>
+          <div class="stat-row total"><span>Total Files</span><strong id="statTotal">0</strong></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- File preview modal -->
+  <div class="modal-overlay hidden" id="previewModal" onclick="closePreview(event)">
+    <div class="modal-box preview-box">
+      <div class="modal-header">
+        <span id="previewName">—</span>
+        <div class="modal-actions">
+          <button class="modal-btn" onclick="downloadFile()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 19h14M5 12l7 7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Download
+          </button>
+          <button class="modal-btn danger" onclick="deleteFile()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Delete
+          </button>
+          <button class="modal-close" onclick="closePreviewModal()">✕</button>
+        </div>
+      </div>
+      <div class="preview-content" id="previewContent"></div>
+    </div>
+  </div>
+
+  <!-- Invite user modal -->
+  <div class="modal-overlay hidden" id="inviteModal" onclick="closeInvite(event)">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span>ADD GUEST USER</span>
+        <button class="modal-close" onclick="closeInviteModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label">USER EMAIL</label>
+        <input type="email" id="inviteEmail" class="text-input" placeholder="guest@example.com" />
+        <div id="inviteError" class="error-msg hidden"></div>
+        <button class="btn-primary" onclick="inviteUser()" style="margin-top:16px">
+          ADD USER
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/vault-admin.js"></script>
+</body>
+</html>
