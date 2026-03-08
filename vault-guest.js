@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-// VAULT — Guest View (vault-guest.js)
+// VAULT — Guest View (vault-guest.js) — FIXED
 // View only. No downloads, no interaction.
 // ─────────────────────────────────────────────────────────────
 
@@ -13,26 +13,22 @@ window.addEventListener('DOMContentLoaded', async () => {
   session = requireAuth('guest');
   if (!session) return;
 
-  // Set watermark with guest email
   document.getElementById('sidebarEmail').textContent = session.email;
   const wm = document.getElementById('watermark');
   if (wm) wm.setAttribute('data-email', session.email);
 
   await loadFiles();
-  applyGuestSecurity();
 });
 
 // ── Load files ────────────────────────────────────────────────
 async function loadFiles() {
   const { data, error } = await _supabase
-    .from('vault_files')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .from('vault_files').select('*').order('created_at', { ascending: false });
 
   if (error) { console.error(error); return; }
-
   allFiles = data || [];
-  document.getElementById('fileCount').textContent = `${allFiles.length} file${allFiles.length !== 1 ? 's' : ''}`;
+  document.getElementById('fileCount').textContent =
+    `${allFiles.length} file${allFiles.length !== 1 ? 's' : ''}`;
   renderFiles();
 }
 
@@ -41,23 +37,16 @@ function renderFiles() {
   const empty = document.getElementById('filesEmpty');
 
   let filtered = allFiles.filter(f => {
-    const matchFilter = currentFilter === 'all' || getFileCategory(f.type) === currentFilter;
+    const matchFilter = currentFilter === 'all' || getFileCategory(f.type, f.name) === currentFilter;
     const matchSearch = !currentSearch || f.name.toLowerCase().includes(currentSearch.toLowerCase());
     return matchFilter && matchSearch;
   });
 
   Array.from(grid.querySelectorAll('.file-card')).forEach(c => c.remove());
 
-  if (filtered.length === 0) {
-    empty.style.display = 'flex';
-    return;
-  }
+  if (filtered.length === 0) { empty.style.display = 'flex'; return; }
   empty.style.display = 'none';
-
-  filtered.forEach(file => {
-    const card = buildGuestCard(file);
-    grid.appendChild(card);
-  });
+  filtered.forEach(file => grid.appendChild(buildGuestCard(file)));
 }
 
 function buildGuestCard(file) {
@@ -65,13 +54,13 @@ function buildGuestCard(file) {
   card.className = 'file-card';
   card.onclick = () => openPreview(file);
 
-  const category = getFileCategory(file.type);
+  const category = getFileCategory(file.type, file.name);
   const thumb = document.createElement('div');
   thumb.className = 'file-thumb';
 
   const tag = document.createElement('div');
   tag.className = 'file-type-tag';
-  tag.textContent = file.type ? file.type.split('/')[1]?.toUpperCase() || 'FILE' : 'FILE';
+  tag.textContent = getExtension(file.name);
   thumb.appendChild(tag);
 
   if (category === 'image') {
@@ -80,7 +69,7 @@ function buildGuestCard(file) {
     img.alt = file.name;
     img.setAttribute('draggable', 'false');
     img.oncontextmenu = () => false;
-    getSignedUrl(file.storage_path).then(url => { if (url) img.src = url; });
+    getFileUrl(file.storage_path).then(url => { if (url) img.src = url; });
     thumb.appendChild(img);
   } else {
     const icon = document.createElement('div');
@@ -92,49 +81,106 @@ function buildGuestCard(file) {
   const info = document.createElement('div');
   info.className = 'file-info';
   info.innerHTML = `
-    <div class="file-name" title="${file.name}">${file.name}</div>
+    <div class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
     <div class="file-size">${formatBytes(file.size || 0)}</div>
   `;
-
   card.appendChild(thumb);
   card.appendChild(info);
   return card;
 }
 
-// ── Preview (view only) ───────────────────────────────────────
+// ── Preview — FIXED (view only) ───────────────────────────────
 async function openPreview(file) {
   previewFile = file;
   document.getElementById('previewName').textContent = file.name;
   document.getElementById('previewModal').classList.remove('hidden');
 
   const content = document.getElementById('previewContent');
-  content.innerHTML = '<div class="spinner" style="width:32px;height:32px;border:2px solid rgba(255,255,255,0.1);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite"></div>';
+  content.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--text-muted)">
+      <div class="spinner" style="width:32px;height:32px;border:2px solid rgba(255,255,255,0.1);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite"></div>
+      <span style="font-size:11px;letter-spacing:1px">Loading...</span>
+    </div>`;
 
-  const url = await getSignedUrl(file.storage_path, 300); // short TTL for guests
-  if (!url) { content.innerHTML = '<div class="preview-unsupported">Could not load file.</div>'; return; }
+  const url = await getFileUrl(file.storage_path, 600);
 
-  const category = getFileCategory(file.type);
+  if (!url) {
+    content.innerHTML = `<div class="preview-unsupported">⚠️ Could not load preview.</div>`;
+    return;
+  }
+
+  const category = getFileCategory(file.type, file.name);
+
   if (category === 'image') {
-    // Load via fetch + blob URL to prevent direct URL access
+    // Load via blob to hide direct URL from guests
     try {
       const resp = await fetch(url);
+      if (!resp.ok) throw new Error('fetch failed');
       const blob = await resp.blob();
       const blobUrl = URL.createObjectURL(blob);
-      content.innerHTML = `<img src="${blobUrl}" alt="${file.name}" draggable="false" oncontextmenu="return false" />`;
+      const img = document.createElement('img');
+      img.src = blobUrl;
+      img.style.cssText = 'max-width:100%;max-height:65vh;border-radius:6px;display:block;pointer-events:none;';
+      img.draggable = false;
+      img.oncontextmenu = () => false;
+      content.innerHTML = '';
+      content.appendChild(img);
     } catch {
-      content.innerHTML = `<img src="${url}" alt="${file.name}" draggable="false" oncontextmenu="return false" />`;
+      content.innerHTML = `<div class="preview-unsupported">❌ Image failed to load.</div>`;
     }
+
   } else if (category === 'video') {
-    // No download, no controls save
-    content.innerHTML = `<video autoplay controls controlsList="nodownload nofullscreen noremoteplayback" oncontextmenu="return false" disablePictureInPicture><source src="${url}" type="${file.type}" /></video>`;
-  } else if (file.type === 'application/pdf') {
-    content.innerHTML = `<iframe src="${url}#toolbar=0&navpanes=0&scrollbar=0" title="${file.name}"></iframe>`;
+    content.innerHTML = `
+      <video autoplay controls
+        controlsList="nodownload nofullscreen noremoteplayback"
+        disablePictureInPicture
+        oncontextmenu="return false"
+        style="max-width:100%;max-height:65vh;border-radius:6px;pointer-events:auto;">
+        <source src="${url}" type="${file.type || 'video/mp4'}">
+      </video>`;
+
+  } else if (category === 'pdf') {
+    content.innerHTML = `
+      <iframe
+        src="${url}#toolbar=0&navpanes=0&scrollbar=1&view=FitH"
+        style="width:100%;height:65vh;border:none;border-radius:6px;background:#fff;"
+        title="document">
+      </iframe>`;
+
+  } else if (category === 'audio') {
+    content.innerHTML = `
+      <div style="padding:40px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:20px">🎵</div>
+        <p style="margin-bottom:16px;color:var(--text-muted);font-size:12px">${escapeHtml(file.name)}</p>
+        <audio controls controlsList="nodownload" style="width:100%;max-width:400px;">
+          <source src="${url}" type="${file.type}">
+        </audio>
+      </div>`;
+
+  } else if (category === 'text') {
+    try {
+      const resp = await fetch(url);
+      const text = await resp.text();
+      content.innerHTML = `
+        <pre style="
+          width:100%;max-height:65vh;overflow:auto;
+          background:var(--bg3);border-radius:6px;
+          padding:20px;font-size:12px;line-height:1.7;
+          color:var(--text);white-space:pre-wrap;word-break:break-word;
+          border:1px solid var(--border);text-align:left;pointer-events:none;
+        ">${escapeHtml(text)}</pre>`;
+    } catch {
+      content.innerHTML = `<div class="preview-unsupported">📝 ${escapeHtml(file.name)}<br/><small style="opacity:.5">Text preview unavailable.</small></div>`;
+    }
+
   } else {
-    content.innerHTML = `<div class="preview-unsupported">
-      <div style="font-size:48px;margin-bottom:12px">${getFileIcon(category)}</div>
-      <p style="margin-bottom:8px">${file.name}</p>
-      <p style="font-size:10px;color:var(--text-muted)">Preview not available for this file type.</p>
-    </div>`;
+    content.innerHTML = `
+      <div class="preview-unsupported">
+        <div style="font-size:52px;margin-bottom:14px">${getFileIcon(category)}</div>
+        <p style="color:var(--text);margin-bottom:6px">${escapeHtml(file.name)}</p>
+        <p style="font-size:10px;color:var(--text-muted)">${formatBytes(file.size || 0)}</p>
+        <p style="font-size:10px;color:var(--text-muted);margin-top:12px">Preview not available for this file type.</p>
+      </div>`;
   }
 }
 
@@ -143,90 +189,67 @@ function closePreview(event) {
 }
 function closePreviewModal() {
   document.getElementById('previewModal').classList.add('hidden');
+  document.querySelectorAll('#previewContent video, #previewContent audio').forEach(m => m.pause());
   document.getElementById('previewContent').innerHTML = '';
   previewFile = null;
 }
 
-// ── Guest Security Layer ──────────────────────────────────────
-function applyGuestSecurity() {
-  // No right click
-  document.addEventListener('contextmenu', e => e.preventDefault());
-
-  // Block keyboard shortcuts for saving, printing, copying
-  document.addEventListener('keydown', e => {
-    const blocked = (
-      (e.ctrlKey || e.metaKey) && ['s', 'p', 'c', 'u', 'a', 'f12'].includes(e.key.toLowerCase()) ||
-      e.key === 'PrintScreen' ||
-      e.key === 'F12'
-    );
-    if (blocked) {
-      e.preventDefault();
-      flashWarning();
-    }
-  });
-
-  // Block drag
-  document.addEventListener('dragstart', e => e.preventDefault());
-
-  // Detect visibility change (tab switch = possible screenshot tool)
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      // Blur content while away
-    }
-  });
-
-  // Disable print
-  window.addEventListener('beforeprint', e => {
-    e.preventDefault();
-    flashWarning();
-    return false;
-  });
-}
-
-function flashWarning() {
-  const div = document.createElement('div');
-  div.style.cssText = `
-    position:fixed;inset:0;background:rgba(255,74,107,0.15);
-    border:2px solid var(--danger);z-index:99999;
-    display:flex;align-items:center;justify-content:center;
-    font-family:var(--font-display);font-size:18px;letter-spacing:4px;
-    color:var(--danger);pointer-events:none;
-  `;
-  div.textContent = 'ACTION NOT PERMITTED';
-  document.body.appendChild(div);
-  setTimeout(() => div.remove(), 1500);
-}
-
-// ── Filtering ─────────────────────────────────────────────────
+// ── Filter ────────────────────────────────────────────────────
 function filterFiles(cat, btn) {
   currentFilter = cat;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderFiles();
 }
-
 function searchFiles(query) {
   currentSearch = query;
   renderFiles();
 }
 
-// ── Helpers ───────────────────────────────────────────────────
-async function getSignedUrl(path, expiry = 60) {
-  const { data } = await _supabase.storage
-    .from(BUCKET_NAME)
-    .createSignedUrl(path, expiry);
-  return data?.signedUrl || null;
+// ── URL Helper ────────────────────────────────────────────────
+async function getFileUrl(path, expiry = 600) {
+  if (!path) return null;
+  try {
+    const { data, error } = await _supabase.storage
+      .from(BUCKET_NAME).createSignedUrl(path, expiry);
+    if (error) { console.error('URL error:', error); return null; }
+    return data?.signedUrl || null;
+  } catch (err) {
+    console.error('getFileUrl error:', err);
+    return null;
+  }
 }
 
-function getFileCategory(mimeType) {
-  if (!mimeType) return 'other';
+// ── File type helpers ─────────────────────────────────────────
+function getFileCategory(mimeType, filename = '') {
+  const ext = filename.split('.').pop().toLowerCase();
+  if (!mimeType || mimeType === 'application/octet-stream') {
+    if (['jpg','jpeg','png','gif','webp','svg','bmp'].includes(ext)) return 'image';
+    if (['mp4','webm','mov','avi','mkv','m4v'].includes(ext)) return 'video';
+    if (['pdf'].includes(ext)) return 'pdf';
+    if (['mp3','wav','ogg','m4a','flac','aac'].includes(ext)) return 'audio';
+    if (['txt','md','js','ts','css','html','json','csv','xml'].includes(ext)) return 'text';
+    return 'other';
+  }
   if (mimeType.startsWith('image/')) return 'image';
   if (mimeType.startsWith('video/')) return 'video';
-  if (mimeType === 'application/pdf' || mimeType.includes('document') || mimeType.includes('text')) return 'pdf';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType === 'application/pdf') return 'pdf';
+  if (mimeType.startsWith('text/') || mimeType.includes('json') || mimeType.includes('xml')) return 'text';
   return 'other';
 }
 
 function getFileIcon(category) {
-  const icons = { image: '🖼️', video: '🎬', pdf: '📄', other: '📦' };
-  return icons[category] || '📦';
+  return { image:'🖼️', video:'🎬', pdf:'📄', audio:'🎵', text:'📝', other:'📦' }[category] || '📦';
+}
+
+function getExtension(filename) {
+  const ext = filename.split('.').pop();
+  return ext ? ext.toUpperCase() : 'FILE';
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
