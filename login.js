@@ -150,7 +150,6 @@ function setupKey(k) {
 }
 function setupDel() { setupBuffer = setupBuffer.slice(0, -1); updateDots('pinDisplaySetup', setupBuffer.length); }
 function setupClear() { setupBuffer = ''; updateDots('pinDisplaySetup', 0); }
-
 // ── Step 4: Confirm PIN ───────────────────────────────────────
 function confirmKey(k) {
   if (confirmBuffer.length >= 4) return;
@@ -158,10 +157,19 @@ function confirmKey(k) {
   updateDots('pinDisplayConfirm', confirmBuffer.length);
   if (confirmBuffer.length === 4) confirmSetupPin();
 }
-function confirmDel() { confirmBuffer = confirmBuffer.slice(0, -1); updateDots('pinDisplayConfirm', confirmBuffer.length); }
-function confirmClear() { confirmBuffer = ''; updateDots('pinDisplayConfirm', 0); }
+
+function confirmDel() {
+  confirmBuffer = confirmBuffer.slice(0, -1);
+  updateDots('pinDisplayConfirm', confirmBuffer.length);
+}
+
+function confirmClear() {
+  confirmBuffer = '';
+  updateDots('pinDisplayConfirm', 0);
+}
 
 async function confirmSetupPin() {
+
   if (setupBuffer !== confirmBuffer) {
     shakePin('pinDisplayConfirm');
     confirmBuffer = '';
@@ -171,9 +179,53 @@ async function confirmSetupPin() {
   }
 
   showLoading();
+
   try {
+
     const hash = await hashPin(setupBuffer);
-    const deviceToken = getDeviceToken();
+
+    // Check if admin row already exists
+    const { data: existing } = await _supabase
+      .from('vault_users')
+      .select('email')
+      .eq('email', currentEmail)
+      .single();
+
+    if (existing) {
+
+      // Update existing row
+      await _supabase
+        .from('vault_users')
+        .update({
+          pin_hash: hash,
+          role: 'admin'
+        })
+        .eq('email', currentEmail);
+
+    } else {
+
+      // Insert new admin row
+      await _supabase
+        .from('vault_users')
+        .insert({
+          email: currentEmail,
+          pin_hash: hash,
+          role: 'admin'
+        });
+
+    }
+
+    hideLoading();
+    setSession(currentEmail, 'admin');
+    redirect('admin');
+
+  } catch (err) {
+
+    hideLoading();
+    showError('confirmError', 'Error saving PIN. Please try again.');
+
+  }
+}
 
     // Check if admin row exists
     const { data: existing } = await _supabase
