@@ -72,12 +72,7 @@ async function submitEmail() {
       return;
     }
 
-    // Check device lock
-    const deviceToken = getDeviceToken();
-    if (data.device_token && data.device_token !== deviceToken) {
-      showStep('step-email', 'step-blocked');
-      return;
-    }
+    
 
     // Show PIN entry
     document.getElementById('pinLabel').textContent = data.role === 'admin' ? 'ENTER ADMIN PIN' : 'ENTER YOUR PIN';
@@ -129,12 +124,7 @@ async function submitPin() {
     }
 
     // PIN correct — register device if first time on this device
-    if (!data.device_token) {
-      await _supabase
-        .from('vault_users')
-        .update({ device_token: deviceToken })
-        .eq('email', currentEmail);
-    }
+    
 
     hideLoading();
     setSession(currentEmail, data.role);
